@@ -10,8 +10,8 @@
 
 unsigned char key[EVP_MAX_KEY_LENGTH];
 unsigned char iv[EVP_MAX_IV_LENGTH];
-size_t sizeHash = 0;
-
+std::vector<unsigned char> HashEn;
+std::vector<unsigned char> HashDe;
 
 void ReadFile(const std::string& filePath, std::vector<unsigned char>& buf)
 {
@@ -100,18 +100,15 @@ void Encrypt()
 {
     std::vector<unsigned char> plainTextEn;
     ReadFile("plain_text.txt", plainTextEn);
-
-    std::vector<unsigned char> hash;
-    CalculateHash(plainTextEn, hash);
-
-    sizeHash = hash.size();
+    
+    CalculateHash(plainTextEn, HashEn);    
 
     std::vector<unsigned char> chipherTextEn;
     EncryptAes(plainTextEn, chipherTextEn);
 
     WriteFile("chipher_text.txt", chipherTextEn);
 
-    AppendToFile("chipher_text.txt", hash);
+    AppendToFile("chipher_text.txt", HashEn);
 }
 
 void DecryptAes(const std::vector<unsigned char> chipherText, std::vector<unsigned char> &plainText) { 
@@ -143,6 +140,12 @@ void DecryptAes(const std::vector<unsigned char> chipherText, std::vector<unsign
 
 }
 
+void CompareHashes(std::vector<unsigned char> &hashDe, std::vector<unsigned char> &hashEn) {
+    if (!(hashDe == hashEn)) {
+        throw std::runtime_error("Hashes not equal");;
+    }
+}
+
 void DetachmentHash(std::vector<unsigned char> & chipherText,size_t sizeHash) {
     size_t newSizeChipherText = chipherText.size() - sizeHash;
     chipherText.erase(chipherText.begin()+newSizeChipherText,chipherText.end());
@@ -152,19 +155,20 @@ void Decrypt() {
     std::vector<unsigned char> chipherTextDe;
     ReadFile("chipher_text.txt", chipherTextDe);
 
-    DetachmentHash(chipherTextDe, sizeHash);
+    DetachmentHash(chipherTextDe, HashEn.size());//detachment hash from chipher text.
 
     std::vector<unsigned char> plainTextDe;
     DecryptAes(chipherTextDe, plainTextDe);
+
+    CalculateHash(plainTextDe,HashDe);// hash decrypt text.
+    CompareHashes(HashDe,HashEn);
 
     WriteFile("plain_text111.txt", plainTextDe);
 }
 
 int main()
 {
-    OpenSSL_add_all_digests();
-   //OpenSSL_add_all_ciphers();
-    
+    OpenSSL_add_all_digests();   
     std::string pass = "pass";
     try
     {
